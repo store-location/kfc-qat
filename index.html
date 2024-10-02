@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KFC Stores QAT</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Friz Quadrata', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f4f4f4 30%, #ffffff);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            animation: fadeIn 2s ease-in-out forwards;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background-color: #ffffffd9;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        h1 {
+            color: #d62300;
+            font-size: 2.5em;
+            margin: 0;
+            opacity: 0;
+            transform: translateY(-50px);
+            animation: slideInFromTop 1s forwards ease-in-out 1s;
+        }
+
+        #nearest-store-button {
+            padding: 12px 24px;
+            background-color: #d62300;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.4s, transform 0.4s;
+            opacity: 0;
+            transform: translateY(-50px);
+            animation: slideInFromTop 1s forwards ease-in-out 1.8s, pulseButton 2s infinite ease-in-out 2.5s;
+        }
+
+        #nearest-store-button:hover {
+            background-color: #ff6347;
+            transform: scale(1.15) rotate(-2deg);
+        }
+
+        #map {
+            flex-grow: 1;
+            width: 90%;
+            height: 80%;
+            margin: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: scale(0.9);
+            animation: mapZoomIn 1.2s forwards ease-in-out 1.5s;
+            border: 5px solid transparent;
+            transition: border 1s ease-in-out;
+        }
+
+        #map:hover {
+            transform: scale(1.03);
+            border: 5px solid #ff6347;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            #nearest-store-button {
+                padding: 10px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.6em;
+            }
+
+            #nearest-store-button {
+                padding: 8px 16px;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes mapZoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pulseButton {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes bounceMarker {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>KFC Stores QAT</h1>
+        <button id="nearest-store-button" onclick="getLocation()">Find Nearest Store</button>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Custom KFC pin icon
+        const kfcIcon = L.icon({
+            iconUrl: 'https://global.kfc.com/images/logo.svg', // Correct icon URL or local path
+            iconSize: [38, 45],
+            iconAnchor: [22, 45],
+            popupAnchor: [-3, -76]
+        });
+
+        // Store locations
+        const stores = [
+    {
+        "name": "NEW AIRPORT HELAL KFC",
+        "lat": 25.26124943,
+        "lng": 51.55812506,
+        "url": "https://www.google.com/maps?q=25.26124943,51.55812506"
+    },
+    {
+        "name": "AL WEKAIR KFC",
+        "lat": 25.17097612,
+        "lng": 51.59734888,
+        "url": "https://www.google.com/maps?q=25.17097612,51.59734888"
+    },
+    {
+        "name": "CITY CENTRE KFC",
+        "lat": 25.32569978,
+        "lng": 51.53218141,
+        "url": "https://www.google.com/maps?q=25.32569978,51.53218141"
+    },
+    {
+        "name": "VILLAGIO MALL KFC",
+        "lat": 25.26145967,
+        "lng": 51.44309081,
+        "url": "https://www.google.com/maps?q=25.26145967,51.44309081"
+    },
+    {
+        "name": "MARKEYA / TOWN CENTRE KFC",
+        "lat": 25.30843946,
+        "lng": 51.49709086,
+        "url": "https://www.google.com/maps?q=25.30843946,51.49709086"
+    },
+    {
+        "name": "CITY CENTRE DOHA 2 KFC",
+        "lat": 25.32533139,
+        "lng": 51.52884294,
+        "url": "https://www.google.com/maps?q=25.32533139,51.52884294"
+    },
+    {
+        "name": "MEAZER REL KFC",
+        "lat": 25.28161552,
+        "lng": 51.43213459,
+        "url": "https://www.google.com/maps?q=25.28161552,51.43213459"
+    },
+    {
+        "name": "WOQOD AIN KHALED",
+        "lat": 25.24509443,
+        "lng": 51.47507416,
+        "url": "https://www.google.com/maps?q=25.24509443,51.47507416"
+    },
+    {
+        "name": "MALL OF QATAR KFC",
+        "lat": 25.32698879,
+        "lng": 51.34991551,
+        "url": "https://www.google.com/maps?q=25.32698879,51.34991551"
+    },
+    {
+        "name": "DOHA KFC (REL)",
+        "lat": 25.28003095,
+        "lng": 51.54387786,
+        "url": "https://www.google.com/maps?q=25.28003095,51.54387786"
+    },
+    {
+        "name": "WOQOOD EZGHAWA KFC",
+        "lat": 25.35121235,
+        "lng": 51.43944553,
+        "url": "https://www.google.com/maps?q=25.35121235,51.43944553"
+    },
+    {
+        "name": "AL KHOUR KFC (REL)",
+        "lat": 25.68573357,
+        "lng": 51.49497845,
+        "url": "https://www.google.com/maps?q=25.68573357,51.49497845"
+    },
+    {
+        "name": "WEST BAY (SHERATON) KFC (REL)",
+        "lat": 25.31834578,
+        "lng": 51.53615089,
+        "url": "https://www.google.com/maps?q=25.31834578,51.53615089"
+    },
+    {
+        "name": "CITY CENTER 1",
+        "lat": 25.3257003,
+        "lng": 51.53218243,
+        "url": "https://www.google.com/maps?q=25.3257003,51.53218243"
+    },
+    {
+        "name": "DOHA FESTIVAL CITY KFC",
+        "lat": 25.38878873,
+        "lng": 51.4410694,
+        "url": "https://www.google.com/maps?q=25.38878873,51.4410694"
+    },
+    {
+        "name": "UMM SLAL MOHAMED",
+        "lat": 25.41124197,
+        "lng": 51.4093574,
+        "url": "https://www.google.com/maps?q=25.41124197,51.4093574"
+    },
+    {
+        "name": "WOQOD HILAL EXTENSION",
+        "lat": 25.25905885,
+        "lng": 51.53541645,
+        "url": "https://www.google.com/maps?q=25.25905885,51.53541645"
+    },
+    {
+        "name": "WAKALAT/INDUSTRIAL KFC",
+        "lat": 25.21693854,
+        "lng": 51.43402378,
+        "url": "https://www.google.com/maps?q=25.21693854,51.43402378"
+    },
+    {
+        "name": "WOQOD WADI AL BANAT",
+        "lat": 25.37944725,
+        "lng": 51.47046588,
+        "url": "https://www.google.com/maps?q=25.37944725,51.47046588"
+    },
+    {
+        "name": "WOQOOD RAYYAN KFC",
+        "lat": 25.26443982,
+        "lng": 51.40443974,
+        "url": "https://www.google.com/maps?q=25.26443982,51.40443974"
+    }
+];
+
+        // Initialize map
+        const map = L.map('map').setView([25.285372444623558, 51.19818820862708], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Add markers with bounce effect
+        stores.forEach(store => {
+            const marker = L.marker([store.lat, store.lng], { icon: kfcIcon }).addTo(map)
+                .bindPopup(`<strong style="color: #d62300; font-size: 1.2em;">${store.name}</strong><br><a href="${store.url}" target="_blank" style="color: #007bff;">Open in Google Maps</a>`);
+            marker._icon.style.animation = "bounceMarker 1s ease-out";
+        });
+
+// Welcome popup with increased size
+const welcomePopup = L.popup()
+    .setLatLng([25.285372444623558, 51.19818820862708])
+    .setContent('<div style="font-size: 1.5em; width: 200px; padding: 20px;"><b>Welcome to KFC QAT!</b><br>Click "Find Nearest Store" to locate the nearest KFC and grab your special offer from those stores.</div>')
+    .openOn(map);
+
+       function getLocation() {
+    if (navigator.geolocation) {
+        if (isSafari()) {
+            const userConsent = confirm("This site needs your location to find the nearest store. Please allow location access in the popup.");
+            if (userConsent) {
+                navigator.geolocation.getCurrentPosition(showNearestStore, handleLocationError, {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                });
+            }
+        } else {
+            navigator.geolocation.getCurrentPosition(showNearestStore, handleLocationError, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        }
+    } else {
+        alert("Geolocation is not supported by this browser.");
+    }
+}
+
+function isSafari() {
+    return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+}
+
+function handleLocationError(error) {
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            alert("User denied the request for Geolocation.");
+            break;
+        case error.POSITION_UNAVAILABLE:
+            alert("Location information is unavailable.");
+            break;
+        case error.TIMEOUT:
+            alert("The request to get user location timed out.");
+            break;
+        case error.UNKNOWN_ERROR:
+            alert("An unknown error occurred.");
+            break;
+    }
+}
+
+        function showNearestStore(position) {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            let nearestStore = null;
+            let minDistance = Infinity;
+            stores.forEach(store => {
+                const distance = getDistance(userLat, userLng, store.lat, store.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestStore = store;
+                }
+            });
+            if (nearestStore) {
+        alert(`The nearest store is: ${nearestStore.name}`);
+        window.open(nearestStore.url, "_blank");
+            }
+        }
+        function getDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Radius of the Earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLng = deg2rad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const distance = R * c; // Distance in km
+            return distance;
+        }
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+    </script>
+</body>
+</html>
